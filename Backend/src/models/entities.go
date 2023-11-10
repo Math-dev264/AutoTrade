@@ -6,8 +6,3 @@ type User struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
-
-type Authentication struct {
-	Id_user string `json:"id"`
-	Token   string `json:"token"`
-}

@@ -12,11 +12,12 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func CreateToken( /*userID uint64*/ ) (string, error) {
+func CreateToken(userId uint64, email string) (string, error) {
 	permissions := jwt.MapClaims{}
 	permissions["authorized"] = true
 	permissions["exp"] = time.Now().Add(time.Hour * 6).Unix()
-	permissions["userId"] = "1258752" /*userID*/
+	permissions["userId"] = userId
+	permissions["email"] = email
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, permissions)
 	return token.SignedString(configs.SecretKey)

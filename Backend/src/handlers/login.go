@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/Math-dev264/AutoTrade/Backend/src/auth"
+	"github.com/Math-dev264/AutoTrade/Backend/src/db"
+	"github.com/Math-dev264/AutoTrade/Backend/src/security"
 	"github.com/Math-dev264/AutoTrade/Backend/src/utils"
 	"github.com/labstack/echo/v4"
 )
@@ -11,6 +14,50 @@ import (
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+func getPassword(email string) (hash string, err error) {
+	conn, err := db.OpenConnection()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	sql := `SELECT password FROM users
+						WHERE email = $1`
+
+	err = conn.QueryRow(sql, email).Scan(&hash)
+	return hash, err
+}
+
+func getUserId(email string) (id uint64, err error) {
+	conn, err := db.OpenConnection()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	sql := `SELECT id FROM users
+						WHERE email = $1`
+
+	err = conn.QueryRow(sql, email).Scan(&id)
+	return id, err
+}
+
+func postAuthentication(userId uint64, token string) {
+	conn, err := db.OpenConnection()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	sql := `INSERT INTO authentication (id_user, token)
+						VALUES ($1, $2)`
+
+	_, err = conn.Exec(sql, userId, token)
+	if err != nil {
+		log.Print("Erro inserir registro de token no banco")
+	}
 }
 
 func Login(c echo.Context) error {
@@ -24,12 +71,27 @@ func Login(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Não há nenhuma conta com este e-mail")
 	}
 
-	token, err := auth.CreateToken()
+	hash, err := getPassword(bodyRequest.Email)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Senha não encontrada")
+	}
+
+	equal := security.CheckPasswordHash(bodyRequest.Password, hash)
+	if !equal {
+		return c.String(402, "Senha e hash são diferentes")
+	}
+
+	userId, err := getUserId(bodyRequest.Email)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Id não encontrado")
+	}
+
+	token, err := auth.CreateToken(userId, bodyRequest.Email)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Erro ao criar o token")
 	}
 
-	// userID := strconv.FormatUint(userDB.ID, 10)
+	postAuthentication(userId, token)
+
 	return c.JSON(http.StatusOK, map[string]string{"token_access": token})
-	// c.JSON(http.StatusOK, models.Authentication{ID: userID, Token: token})
 }
