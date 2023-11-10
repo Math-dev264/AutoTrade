@@ -3,7 +3,7 @@
     <Sidebar />
 
     <q-page-container>
-      <q-page class="flex flex-center">
+      <q-page>
         <router-view />
       </q-page>
     </q-page-container>
